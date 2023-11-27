@@ -1,0 +1,1 @@
+# Firmware update OTA example derived from HTTPS simple_ota_example
