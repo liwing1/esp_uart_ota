@@ -52,9 +52,9 @@ void jtag_serial_init(void)
     setvbuf(stdin, NULL, _IONBF, 0);
 
     /* Minicom, screen, idf_monitor send CR when ENTER key is pressed */
-    esp_vfs_dev_usb_serial_jtag_set_rx_line_endings(ESP_LINE_ENDINGS_CR);
+    esp_vfs_dev_usb_serial_jtag_set_rx_line_endings(ESP_LINE_ENDINGS_LF);
     /* Move the caret to the beginning of the next line on '\n' */
-    esp_vfs_dev_usb_serial_jtag_set_tx_line_endings(ESP_LINE_ENDINGS_CRLF);
+    esp_vfs_dev_usb_serial_jtag_set_tx_line_endings(ESP_LINE_ENDINGS_LF);
 
     /* Enable non-blocking mode on stdin and stdout */
     fcntl(fileno(stdout), F_SETFL, 0);
@@ -78,6 +78,9 @@ void jtag_serial_init(void)
 
 static esp_err_t _ota_write(esp_ota_uart_config_t *uart_ota_handle, const void *buffer, size_t buf_len)
 {
+    static size_t num_ota_writes = 0;
+    static size_t total_len = 0;
+
     if (buffer == NULL || uart_ota_handle == NULL) {
         return ESP_FAIL;
     }
@@ -87,8 +90,13 @@ static esp_err_t _ota_write(esp_ota_uart_config_t *uart_ota_handle, const void *
     } else {
         uart_ota_handle->binary_file_len += buf_len;
         ESP_LOGD(TAG, "Written image length %d", uart_ota_handle->binary_file_len);
+        ESP_LOGW(TAG, "num_ota_writes: %d, total_len: %d", num_ota_writes++, total_len+=buf_len);
 
-        if(uart_ota_handle->binary_file_len < DEFAULT_OTA_BUF_SIZE){
+        if(num_ota_writes >= 673) {
+            ESP_LOG_BUFFER_HEXDUMP(TAG, buffer, buf_len, ESP_LOG_WARN);
+        }
+
+        if(buf_len < DEFAULT_OTA_BUF_SIZE){
             err = ESP_OK;
         } else {
             err = ESP_ERR_UART_OTA_IN_PROGRESS;
@@ -146,9 +154,9 @@ esp_err_t esp_uart_ota_perform(esp_ota_uart_config_t *handle)
 {
     int bin_read_size = MIN(DEFAULT_OTA_BUF_SIZE, IMAGE_LEN - handle->binary_file_len);
 
-    printf("request: %d\n", bin_read_size);
-
     memset(handle->ota_upgrade_buf, 0, DEFAULT_OTA_BUF_SIZE);
+
+    printf("request: %d\n", bin_read_size);
     fread(handle->ota_upgrade_buf, bin_read_size, 1, stdin);
     // ESP_LOG_BUFFER_HEXDUMP(TAG, ota_buffer, DEFAULT_OTA_BUF_SIZE, ESP_LOG_WARN);
 
@@ -170,6 +178,9 @@ esp_err_t esp_uart_ota(esp_ota_uart_config_t *config)
     }
 
     err = esp_ota_end(config->update_handle);
+    if(err == ESP_OK) {
+        err = esp_ota_set_boot_partition(config->update_partition);
+    }
 
     return err;
 }
@@ -180,41 +191,22 @@ void ota_task(void* p)
 
     esp_err_t ret = esp_uart_ota(&cfg);
     if (ret == ESP_OK) {
+        ESP_LOGW(TAG, "esp_uart_ota -> OK");
         esp_restart();
     } else {
         ESP_LOGE(TAG, "Firmware upgrade failed");
     }
     while (1) {
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        vTaskDelay(10000 / portTICK_PERIOD_MS);
+        esp_restart();
     }
 }
 
 void app_main() {
     jtag_serial_init();
 
-    char ota_buffer[DEFAULT_OTA_BUF_SIZE] = {0};
-    size_t downloaded = 0;
-
     vTaskDelay(pdMS_TO_TICKS(15000));
 
     xTaskCreate(ota_task, "ota_task", 8192, NULL, 5, NULL);
-
-    // while(1)
-    // {
-    //     printf("request: %d\n", DEFAULT_OTA_BUF_SIZE);
-    //     fread(ota_buffer, MIN(DEFAULT_OTA_BUF_SIZE, IMAGE_LEN - downloaded), 1, stdin);
-
-    //     // ESP_LOG_BUFFER_HEXDUMP(TAG, ota_buffer, DEFAULT_OTA_BUF_SIZE, ESP_LOG_WARN);
-    //     downloaded += DEFAULT_OTA_BUF_SIZE;
-
-
-    //     if(downloaded >= IMAGE_LEN){
-    //         ESP_LOG_BUFFER_HEXDUMP(TAG, ota_buffer, DEFAULT_OTA_BUF_SIZE, ESP_LOG_WARN);
-    //         break;
-    //     }
-
-    //     memset(ota_buffer, 0, DEFAULT_OTA_BUF_SIZE);
-    //     vTaskDelay(pdMS_TO_TICKS(100));
-    // }
 
 }
