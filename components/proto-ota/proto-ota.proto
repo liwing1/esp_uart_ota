@@ -1,0 +1,14 @@
+syntax = "proto2";
+
+message FirmUpdateStart {
+    optional int32 image_size = 1;
+}
+
+message FirmPktReq {
+    optional int32 numBytes = 1;
+    optional bool advanceAddress = 2;
+}
+
+message FirmPktRes {
+    repeated bytes pkt = 1;
+}

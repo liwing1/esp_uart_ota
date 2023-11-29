@@ -1,2 +1,2 @@
-idf_component_register(SRCS "ota_uart.c" "ota_request_bin.c"
+idf_component_register(SRCS "ota_uart.c" "esp_uart_ota.c"
                     INCLUDE_DIRS ".")
