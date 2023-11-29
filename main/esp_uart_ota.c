@@ -3,12 +3,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
-#include "esp_ota_ops.h"
 
-#define IMAGE_HEADER_SIZE sizeof(esp_image_header_t) + sizeof(esp_image_segment_header_t) + sizeof(esp_app_desc_t) + 1
-#define DEFAULT_OTA_BUF_SIZE IMAGE_HEADER_SIZE
-#define DEFAULT_REQUEST_SIZE (64 * 1024)
-#define IMAGE_LEN  194768
 
 #define ESP_ERR_UART_OTA_BASE            (0x9000)
 #define ESP_ERR_UART_OTA_IN_PROGRESS     (ESP_ERR_UART_OTA_BASE + 1)  /* OTA operation in progress */
@@ -98,17 +93,9 @@ esp_err_t esp_uart_ota_begin(esp_ota_uart_config_t *config)
     }
 
     config->ota_upgrade_buf_size = alloc_size;
-    config->image_length = IMAGE_LEN; //194768
+    config->image_length = 194768; //194768
     config->max_uart_request_size = DEFAULT_REQUEST_SIZE;
     config->state = ESP_UART_OTA_BEGIN;
-
-    // ESP_LOGW(TAG, "Got partition: %s", config->update_partition->label);
-    // ESP_LOGW(TAG, "Got upgrade buf size: %d", config->ota_upgrade_buf_size);
-    // ESP_LOGW(TAG, "Got binary file len: %d", config->binary_file_len);
-    // ESP_LOGW(TAG, "Got image len: %d", config->image_length);
-    // ESP_LOGW(TAG, "Got max request size: %d", config->max_uart_request_size);
-    // ESP_LOGW(TAG, "Got bulk flash erase: %d", config->bulk_flash_erase);
-    // ESP_LOGW(TAG, "Got partial: %d", config->partial_uart_download);
 
     const int erase_size = config->bulk_flash_erase ? OTA_SIZE_UNKNOWN : OTA_WITH_SEQUENTIAL_WRITES;
     err = esp_ota_begin(config->update_partition, erase_size, &config->update_handle);
@@ -120,7 +107,7 @@ failure:
 
 esp_err_t esp_uart_ota_perform(esp_ota_uart_config_t *handle)
 {
-    int bin_read_size = MIN(DEFAULT_OTA_BUF_SIZE, IMAGE_LEN - handle->binary_file_len);
+    int bin_read_size = MIN(DEFAULT_OTA_BUF_SIZE, handle->image_length - handle->binary_file_len);
 
     memset(handle->ota_upgrade_buf, 0, DEFAULT_OTA_BUF_SIZE);
 
