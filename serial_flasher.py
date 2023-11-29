@@ -36,6 +36,6 @@ def main(serial_port_name, filename):
                 print(f"echo: {message}")
 
 if __name__ == "__main__":
-    serial_port = "COM10"  # Change this to your serial port
+    serial_port = "COM21"  # Change this to your serial port
     binary_file = "hello_world.bin"  # Change this to the path of your binary file
     main(serial_port, binary_file)
